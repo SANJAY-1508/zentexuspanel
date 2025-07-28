@@ -59,9 +59,19 @@ function saveBase64PDF($base64String, $uploadDir = 'uploads/')
 if ($action === 'listPurchases') {
     $query = "SELECT * FROM purchase WHERE delete_at = 0 ORDER BY create_at ASC";
     $result = $conn->query($query);
+    $baseUrl = 'http://localhost/zentexuspanel/api/';
 
     if ($result && $result->num_rows > 0) {
         $purchases = $result->fetch_all(MYSQLI_ASSOC);
+
+
+        foreach ($purchases as &$purchase) {
+            if (!empty($purchase['company_proof'])) {
+                $purchase['company_proof'] = $baseUrl . $purchase['company_proof'];
+            }
+        }
+        unset($purchase);
+
         $response = [
             "head" => ["code" => 200, "msg" => "Success"],
             "body" => ["purchases" => $purchases]
