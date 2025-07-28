@@ -13,18 +13,47 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 }
 
 $json = file_get_contents('php://input');
-$obj = json_decode($json);
+$obj = json_decode($json, true);
 $output = array();
 
 date_default_timezone_set('Asia/Calcutta');
 $timestamp = date('Y-m-d H:i:s');
 
-if (!isset($obj->action)) {
+if (!isset($obj['action'])) {
     echo json_encode(["head" => ["code" => 400, "msg" => "Action parameter is missing"]]);
     exit();
 }
 
-$action = $obj->action;
+$action = $obj['action'];
+
+// Function to handle Base64 PDF saving
+function saveBase64PDF($base64String, $uploadDir = 'uploads/')
+{
+    // Ensure the upload directory exists
+    if (!is_dir($uploadDir)) {
+        mkdir($uploadDir, 0755, true);
+    }
+
+    // Remove the Base64 prefix (e.g., "data:application/pdf;base64,")
+    $base64String = preg_replace('#^data:application/pdf;base64,#', '', $base64String);
+    $base64String = str_replace(' ', '+', $base64String); // Replace spaces with plus signs
+    $decodedData = base64_decode($base64String);
+
+    if ($decodedData === false) {
+        return ["success" => false, "message" => "Invalid Base64 data"];
+    }
+
+    // Generate a unique file name
+    $fileName = 'pdf_' . uniqid() . '.pdf';
+    $filePath = $uploadDir . $fileName;
+
+    // Save the file
+    if (file_put_contents($filePath, $decodedData)) {
+        return ["success" => true, "filePath" => $filePath];
+    } else {
+        return ["success" => false, "message" => "Failed to save PDF file"];
+    }
+}
 
 // **List Purchases**
 if ($action === 'listPurchases') {
@@ -49,24 +78,24 @@ if ($action === 'listPurchases') {
 
 // **Add Purchase**
 elseif ($action === 'createPurchase') {
-    $company_name = $obj->company_name ?? null;
-    $purchase_date = $obj->purchase_date ?? null;
-    $company_mobile_number = $obj->company_mobile_number ?? null;
-    $company_email = $obj->company_email ?? null;
-    $company_address = $obj->company_address ?? null;
-    $company_gst_no = $obj->company_gst_no ?? null;
-    $company_proof = $obj->company_proof ?? null;
-    $company_products = $obj->company_products ?? null;
-    $subtotal_without_gst = $obj->subtotal_without_gst ?? null;
-    $subtotal_with_gst = $obj->subtotal_with_gst ?? null;
-    $overall_total = $obj->overall_total ?? null;
-    $discount_type = $obj->discount_type ?? null;
-    $discount = $obj->discount ?? null;
-    $total = $obj->total ?? null;
-    $payment_details = $obj->payment_details ?? null;
-    $balance = $obj->balance ?? null;
-    $reference = $obj->reference ?? null;
-    $paid_by = $obj->paid_by ?? null;
+    $company_name = $obj['company_name'] ?? null;
+    $purchase_date = $obj['purchase_date'] ?? null;
+    $company_mobile_number = $obj['company_mobile_number'] ?? null;
+    $company_email = $obj['company_email'] ?? null;
+    $company_address = $obj['company_address'] ?? null;
+    $company_gst_no = $obj['company_gst_no'] ?? null;
+    $company_proof = $obj['company_proof'] ?? null;
+    $company_products = $obj['company_products'] ?? null;
+    $subtotal_without_gst = $obj['subtotal_without_gst'] ?? null;
+    $subtotal_with_gst = $obj['subtotal_with_gst'] ?? null;
+    $overall_total = $obj['overall_total'] ?? null;
+    $discount_type = $obj['discount_type'] ?? null;
+    $discount = $obj['discount'] ?? null;
+    $total = $obj['total'] ?? null;
+    $payment_details = $obj['payment_details'] ?? null;
+    $balance = $obj['balance'] ?? null;
+    $reference = $obj['reference'] ?? null;
+    $paid_by = $obj['paid_by'] ?? null;
 
     // Validate required fields
     if (!$company_name || !$purchase_date || !$company_mobile_number) {
@@ -75,6 +104,22 @@ elseif ($action === 'createPurchase') {
             "message" => "Company Name, Purchase Date, and Company Mobile Number are required"
         ];
     } else {
+        // Handle Base64 PDF
+        $company_proof_path = null;
+        if ($company_proof) {
+            $pdfResult = saveBase64PDF($company_proof);
+            if ($pdfResult['success']) {
+                $company_proof_path = $pdfResult['filePath'];
+            } else {
+                $response = [
+                    "status" => 400,
+                    "message" => $pdfResult['message']
+                ];
+                echo json_encode($response, JSON_NUMERIC_CHECK);
+                exit();
+            }
+        }
+
         // Prepare and execute the insert query
         $stmt = $conn->prepare("INSERT INTO purchase (purchase_date, company_name, company_mobile_number, company_email, company_address, company_gst_no, company_proof, company_products, subtotal_without_gst, subtotal_with_gst, overall_total, discount_type, discount, total, payment_details, balance, reference, paid_by, create_at, delete_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)");
         $stmt->bind_param(
@@ -85,7 +130,7 @@ elseif ($action === 'createPurchase') {
             $company_email,
             $company_address,
             $company_gst_no,
-            $company_proof,
+            $company_proof_path,
             $company_products,
             $subtotal_without_gst,
             $subtotal_with_gst,
@@ -104,7 +149,7 @@ elseif ($action === 'createPurchase') {
             $insertId = $conn->insert_id;
 
             // Generate a unique purchase ID
-            $purchase_id = uniqueID("purchase", $insertId);
+            $purchase_id = uniqueID("purchase", $insertId); // Assuming uniqueID is defined elsewhere
 
             // Update the purchase record with the generated unique ID
             $stmtUpdate = $conn->prepare("UPDATE purchase SET purchase_id = ? WHERE id = ?");
@@ -114,7 +159,8 @@ elseif ($action === 'createPurchase') {
                 $response = [
                     "status" => 200,
                     "message" => "Purchase Added Successfully",
-                    "purchase_id" => $purchase_id
+                    "purchase_id" => $purchase_id,
+                    "company_proof_path" => $company_proof_path // Return file path to frontend
                 ];
             } else {
                 $response = [
@@ -137,25 +183,25 @@ elseif ($action === 'createPurchase') {
 
 // **Update Purchase**
 elseif ($action === 'updatePurchase') {
-    $edit_purchase_id = $obj->edit_purchase_id ?? null;
-    $company_name = $obj->company_name ?? null;
-    $purchase_date = $obj->purchase_date ?? null;
-    $company_mobile_number = $obj->company_mobile_number ?? null;
-    $company_email = $obj->company_email ?? null;
-    $company_address = $obj->company_address ?? null;
-    $company_gst_no = $obj->company_gst_no ?? null;
-    $company_proof = $obj->company_proof ?? null;
-    $company_products = $obj->company_products ?? null;
-    $subtotal_without_gst = $obj->subtotal_without_gst ?? null;
-    $subtotal_with_gst = $obj->subtotal_with_gst ?? null;
-    $overall_total = $obj->overall_total ?? null;
-    $discount_type = $obj->discount_type ?? null;
-    $discount = $obj->discount ?? null;
-    $total = $obj->total ?? null;
-    $payment_details = $obj->payment_details ?? null;
-    $balance = $obj->balance ?? null;
-    $reference = $obj->reference ?? null;
-    $paid_by = $obj->paid_by ?? null;
+    $edit_purchase_id = $obj['edit_purchase_id'] ?? null;
+    $company_name = $obj['company_name'] ?? null;
+    $purchase_date = $obj['purchase_date'] ?? null;
+    $company_mobile_number = $obj['company_mobile_number'] ?? null;
+    $company_email = $obj['company_email'] ?? null;
+    $company_address = $obj['company_address'] ?? null;
+    $company_gst_no = $obj['company_gst_no'] ?? null;
+    $company_proof = $obj['company_proof'] ?? null;
+    $company_products = $obj['company_products'] ?? null;
+    $subtotal_without_gst = $obj['subtotal_without_gst'] ?? null;
+    $subtotal_with_gst = $obj['subtotal_with_gst'] ?? null;
+    $overall_total = $obj['overall_total'] ?? null;
+    $discount_type = $obj['discount_type'] ?? null;
+    $discount = $obj['discount'] ?? null;
+    $total = $obj['total'] ?? null;
+    $payment_details = $obj['payment_details'] ?? null;
+    $balance = $obj['balance'] ?? null;
+    $reference = $obj['reference'] ?? null;
+    $paid_by = $obj['paid_by'] ?? null;
 
     // Validate required fields
     if (!$edit_purchase_id || !$company_name || !$purchase_date || !$company_mobile_number) {
@@ -164,7 +210,37 @@ elseif ($action === 'updatePurchase') {
             "message" => "Purchase ID, Company Name, Purchase Date, and Company Mobile Number are required"
         ];
     } else {
-        $stmt = $conn->prepare("UPDATE purchase SET company_name = ?, purchase_date = ?, company_mobile_number = ?, company_email = ?, company_address = ?, company_gst_no = ?, company_proof = ?, company_products = ?, subtotal_without_gst = ?, subtotal_with_gst = ?, overall_total = ?, discount_type = ?, discount = ?, total = ?, payment_details = ?, balance = ?, reference = ?, paid_by = ? WHERE purchase_id = ?");
+        // Handle Base64 PDF
+        $company_proof_path = null;
+        if ($company_proof) {
+            $pdfResult = saveBase64PDF($company_proof);
+            if ($pdfResult['success']) {
+                $company_proof_path = $pdfResult['filePath'];
+
+                // Optionally, delete the old PDF file if it exists
+                $stmtOld = $conn->prepare("SELECT company_proof FROM purchase WHERE purchase_id = ?");
+                $stmtOld->bind_param("s", $edit_purchase_id);
+                $stmtOld->execute();
+                $resultOld = $stmtOld->get_result();
+                if ($resultOld->num_rows > 0) {
+                    $oldProof = $resultOld->fetch_assoc()['company_proof'];
+                    if ($oldProof && file_exists($oldProof)) {
+                        unlink($oldProof); // Delete the old file
+                    }
+                }
+                $stmtOld->close();
+            } else {
+                $response = [
+                    "status" => 400,
+                    "message" => $pdfResult['message']
+                ];
+                echo json_encode($response, JSON_NUMERIC_CHECK);
+                exit();
+            }
+        }
+
+        // Prepare and execute the update query
+        $stmt = $conn->prepare("UPDATE purchase SET company_name = ?, purchase_date = ?, company_mobile_number = ?, company_email = ?, company_address = ?, company_gst_no = ?, company_proof = COALESCE(?, company_proof), company_products = ?, subtotal_without_gst = ?, subtotal_with_gst = ?, overall_total = ?, discount_type = ?, discount = ?, total = ?, payment_details = ?, balance = ?, reference = ?, paid_by = ? WHERE purchase_id = ?");
         $stmt->bind_param(
             "ssssssssdddsddsssss",
             $company_name,
@@ -173,7 +249,7 @@ elseif ($action === 'updatePurchase') {
             $company_email,
             $company_address,
             $company_gst_no,
-            $company_proof,
+            $company_proof_path,
             $company_products,
             $subtotal_without_gst,
             $subtotal_with_gst,
@@ -191,7 +267,8 @@ elseif ($action === 'updatePurchase') {
         if ($stmt->execute()) {
             $response = [
                 "status" => 200,
-                "message" => "Purchase Updated Successfully"
+                "message" => "Purchase Updated Successfully",
+                "company_proof_path" => $company_proof_path
             ];
         } else {
             $response = [
@@ -205,9 +282,22 @@ elseif ($action === 'updatePurchase') {
 
 // **Delete Purchase**
 elseif ($action === 'deletePurchase') {
-    $delete_purchase_id = $obj->delete_purchase_id ?? null;
+    $delete_purchase_id = $obj['delete_purchase_id'] ?? null;
 
     if ($delete_purchase_id) {
+        // Optionally, delete the associated PDF file
+        $stmtOld = $conn->prepare("SELECT company_proof FROM purchase WHERE purchase_id = ?");
+        $stmtOld->bind_param("s", $delete_purchase_id);
+        $stmtOld->execute();
+        $resultOld = $stmtOld->get_result();
+        if ($resultOld->num_rows > 0) {
+            $oldProof = $resultOld->fetch_assoc()['company_proof'];
+            if ($oldProof && file_exists($oldProof)) {
+                unlink($oldProof); // Delete the file
+            }
+        }
+        $stmtOld->close();
+
         $stmt = $conn->prepare("UPDATE purchase SET delete_at = 1 WHERE purchase_id = ?");
         $stmt->bind_param("s", $delete_purchase_id);
 
