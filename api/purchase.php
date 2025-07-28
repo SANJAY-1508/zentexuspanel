@@ -29,14 +29,14 @@ $action = $obj['action'];
 // Function to handle Base64 PDF saving
 function saveBase64PDF($base64String, $uploadDir = 'uploads/')
 {
-    // Ensure the upload directory exists
+
     if (!is_dir($uploadDir)) {
         mkdir($uploadDir, 0755, true);
     }
 
-    // Remove the Base64 prefix (e.g., "data:application/pdf;base64,")
+
     $base64String = preg_replace('#^data:application/pdf;base64,#', '', $base64String);
-    $base64String = str_replace(' ', '+', $base64String); // Replace spaces with plus signs
+    $base64String = str_replace(' ', '+', $base64String);
     $decodedData = base64_decode($base64String);
 
     if ($decodedData === false) {
@@ -158,10 +158,10 @@ elseif ($action === 'createPurchase') {
         if ($stmt->execute()) {
             $insertId = $conn->insert_id;
 
-            // Generate a unique purchase ID
-            $purchase_id = uniqueID("purchase", $insertId); // Assuming uniqueID is defined elsewhere
 
-            // Update the purchase record with the generated unique ID
+            $purchase_id = uniqueID("purchase", $insertId);
+
+
             $stmtUpdate = $conn->prepare("UPDATE purchase SET purchase_id = ? WHERE id = ?");
             $stmtUpdate->bind_param("si", $purchase_id, $insertId);
 
@@ -170,7 +170,7 @@ elseif ($action === 'createPurchase') {
                     "status" => 200,
                     "message" => "Purchase Added Successfully",
                     "purchase_id" => $purchase_id,
-                    "company_proof_path" => $company_proof_path // Return file path to frontend
+                    "company_proof_path" => $company_proof_path
                 ];
             } else {
                 $response = [
@@ -227,7 +227,6 @@ elseif ($action === 'updatePurchase') {
             if ($pdfResult['success']) {
                 $company_proof_path = $pdfResult['filePath'];
 
-                // Optionally, delete the old PDF file if it exists
                 $stmtOld = $conn->prepare("SELECT company_proof FROM purchase WHERE purchase_id = ?");
                 $stmtOld->bind_param("s", $edit_purchase_id);
                 $stmtOld->execute();
@@ -235,7 +234,7 @@ elseif ($action === 'updatePurchase') {
                 if ($resultOld->num_rows > 0) {
                     $oldProof = $resultOld->fetch_assoc()['company_proof'];
                     if ($oldProof && file_exists($oldProof)) {
-                        unlink($oldProof); // Delete the old file
+                        unlink($oldProof);
                     }
                 }
                 $stmtOld->close();
