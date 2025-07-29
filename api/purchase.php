@@ -26,34 +26,7 @@ if (!isset($obj['action'])) {
 
 $action = $obj['action'];
 
-// Function to handle Base64 PDF saving
-function saveBase64PDF($base64String, $uploadDir = 'uploads/')
-{
 
-    if (!is_dir($uploadDir)) {
-        mkdir($uploadDir, 0755, true);
-    }
-
-
-    $base64String = preg_replace('#^data:application/pdf;base64,#', '', $base64String);
-    $base64String = str_replace(' ', '+', $base64String);
-    $decodedData = base64_decode($base64String);
-
-    if ($decodedData === false) {
-        return ["success" => false, "message" => "Invalid Base64 data"];
-    }
-
-    // Generate a unique file name
-    $fileName = 'pdf_' . uniqid() . '.pdf';
-    $filePath = $uploadDir . $fileName;
-
-    // Save the file
-    if (file_put_contents($filePath, $decodedData)) {
-        return ["success" => true, "filePath" => $filePath];
-    } else {
-        return ["success" => false, "message" => "Failed to save PDF file"];
-    }
-}
 
 // **List Purchases**
 if ($action === 'listPurchases') {

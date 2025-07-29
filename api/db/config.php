@@ -191,6 +191,8 @@ function ImageRemove($string, $id)
     }
     return $status;
 }
+
+
 function uniqueID($prefix_name, $auto_increment_id)
 {
 
@@ -203,55 +205,30 @@ function uniqueID($prefix_name, $auto_increment_id)
     return $hashid;
 }
 
-// Generate unique bill number
-function generateBillNo($conn)
+function saveBase64PDF($base64String, $uploadDir = 'uploads/')
 {
-    $query = "SELECT bill_no FROM salesbill ORDER BY id DESC LIMIT 1";
-    $result = $conn->query($query);
-    if ($result->num_rows > 0) {
-        $row = $result->fetch_assoc();
-        $lastBillNo = (int)$row['bill_no'] + 1;
-        return str_pad($lastBillNo, 3, '0', STR_PAD_LEFT);
-    }
-    return '001';
-}
 
-function generatePartyBillNo($conn)
-{
-    $query = "SELECT bill_no FROM salesparty ORDER BY bill_no DESC LIMIT 1";
-    $result = $conn->query($query);
-    if ($result && $result->num_rows > 0) {
-        $row = $result->fetch_assoc();
-        $last_bill_no = $row['bill_no'];
-        // Extract number part and increment
-        $bill_no = (int)substr($last_bill_no, 1) + 1;
-        return 'B' . str_pad($bill_no, 5, '0', STR_PAD_LEFT); // Generate bill number like B00001, B00002, etc.
+    if (!is_dir($uploadDir)) {
+        mkdir($uploadDir, 0755, true);
+    }
+
+
+    $base64String = preg_replace('#^data:application/pdf;base64,#', '', $base64String);
+    $base64String = str_replace(' ', '+', $base64String);
+    $decodedData = base64_decode($base64String);
+
+    if ($decodedData === false) {
+        return ["success" => false, "message" => "Invalid Base64 data"];
+    }
+
+    // Generate a unique file name
+    $fileName = 'pdf_' . uniqid() . '.pdf';
+    $filePath = $uploadDir . $fileName;
+
+    // Save the file
+    if (file_put_contents($filePath, $decodedData)) {
+        return ["success" => true, "filePath" => $filePath];
     } else {
-        return 'B00001'; // Start from B00001 if no previous bill exists
+        return ["success" => false, "message" => "Failed to save PDF file"];
     }
-}
-
-function generatePurchaseNo($conn)
-{
-    $prefix = 'PUR';
-    $stmt = $conn->query("SELECT MAX(CAST(SUBSTRING(purchase_no, 4) AS UNSIGNED)) AS max_no FROM purchase");
-    $row = $stmt->fetch_assoc();
-    $next_no = $row['max_no'] + 1;
-    return $prefix . str_pad($next_no, 6, "0", STR_PAD_LEFT);
-}
-
-function generatePurchaseOrderNo($conn)
-{
-    $prefix = 'PO-';
-    // Query to get the highest purchase order number, extracting the numeric part
-    $stmt = $conn->query("SELECT MAX(CAST(SUBSTRING(purchase_order_billno, 4) AS UNSIGNED)) AS max_no FROM purchase_order");
-
-    // Fetch the result
-    $row = $stmt->fetch_assoc();
-
-    // If no record exists, start from 1
-    $next_no = isset($row['max_no']) ? $row['max_no'] + 1 : 1;
-
-    // Return the next purchase order number with padding
-    return $prefix . str_pad($next_no, 6, "0", STR_PAD_LEFT);
 }
