@@ -95,7 +95,7 @@ elseif ($action === 'createPurchase') {
     $company_address = $obj['company_address'] ?? null;
     $company_gst_no = $obj['company_gst_no'] ?? null;
     $company_proof = $obj['company_proof'] ?? null;
-    $company_products = $obj['company_products'] ?? null;
+    $products = $obj['products'] ?? null;
     $subtotal_without_gst = $obj['subtotal_without_gst'] ?? null;
     $subtotal_with_gst = $obj['subtotal_with_gst'] ?? null;
     $overall_total = $obj['overall_total'] ?? null;
@@ -131,7 +131,7 @@ elseif ($action === 'createPurchase') {
         }
 
         // Prepare and execute the insert query
-        $stmt = $conn->prepare("INSERT INTO purchase (purchase_date, company_name, company_mobile_number, company_email, company_address, company_gst_no, company_proof, company_products, subtotal_without_gst, subtotal_with_gst, overall_total, discount_type, discount, total, payment_details, balance, reference, paid_by, create_at, delete_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)");
+        $stmt = $conn->prepare("INSERT INTO purchase (purchase_date, company_name, company_mobile_number, company_email, company_address, company_gst_no, company_proof, products, subtotal_without_gst, subtotal_with_gst, overall_total, discount_type, discount, total, payment_details, balance, reference, paid_by, create_at, delete_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)");
         $stmt->bind_param(
             "ssssssssdddsddsssss",
             $purchase_date,
@@ -141,7 +141,7 @@ elseif ($action === 'createPurchase') {
             $company_address,
             $company_gst_no,
             $company_proof_path,
-            $company_products,
+            $products,
             $subtotal_without_gst,
             $subtotal_with_gst,
             $overall_total,
@@ -201,7 +201,7 @@ elseif ($action === 'updatePurchase') {
     $company_address = $obj['company_address'] ?? null;
     $company_gst_no = $obj['company_gst_no'] ?? null;
     $company_proof = $obj['company_proof'] ?? null;
-    $company_products = $obj['company_products'] ?? null;
+    $products = $obj['products'] ?? null;
     $subtotal_without_gst = $obj['subtotal_without_gst'] ?? null;
     $subtotal_with_gst = $obj['subtotal_with_gst'] ?? null;
     $overall_total = $obj['overall_total'] ?? null;
@@ -249,7 +249,7 @@ elseif ($action === 'updatePurchase') {
         }
 
         // Prepare and execute the update query
-        $stmt = $conn->prepare("UPDATE purchase SET company_name = ?, purchase_date = ?, company_mobile_number = ?, company_email = ?, company_address = ?, company_gst_no = ?, company_proof = COALESCE(?, company_proof), company_products = ?, subtotal_without_gst = ?, subtotal_with_gst = ?, overall_total = ?, discount_type = ?, discount = ?, total = ?, payment_details = ?, balance = ?, reference = ?, paid_by = ? WHERE purchase_id = ?");
+        $stmt = $conn->prepare("UPDATE purchase SET company_name = ?, purchase_date = ?, company_mobile_number = ?, company_email = ?, company_address = ?, company_gst_no = ?, company_proof = COALESCE(?, company_proof), products = ?, subtotal_without_gst = ?, subtotal_with_gst = ?, overall_total = ?, discount_type = ?, discount = ?, total = ?, payment_details = ?, balance = ?, reference = ?, paid_by = ? WHERE purchase_id = ?");
         $stmt->bind_param(
             "ssssssssdddsddsssss",
             $company_name,
@@ -259,7 +259,7 @@ elseif ($action === 'updatePurchase') {
             $company_address,
             $company_gst_no,
             $company_proof_path,
-            $company_products,
+            $products,
             $subtotal_without_gst,
             $subtotal_with_gst,
             $overall_total,
