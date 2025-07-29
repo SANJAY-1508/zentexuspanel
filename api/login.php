@@ -64,7 +64,7 @@ if (isset($obj->email) && isset($obj->password)) {
                 $output["body"]["token"] = $jwt;
             } else {
                 $output["head"]["code"] = 400;
-                $output["head"]["msg"] = "Invalid Credentials";
+                $output["head"]["msg"] = "Password is wrong";
             }
         } else {
             $output["head"]["code"] = 400;
