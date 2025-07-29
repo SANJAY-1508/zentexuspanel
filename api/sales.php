@@ -28,20 +28,57 @@ $action = $obj['action'];
 
 // **List Sales**
 if ($action === 'listSales') {
-    $query = "SELECT * FROM sales WHERE delete_at = 0 ORDER BY create_at ASC";
-    $result = $conn->query($query);
-    if ($result && $result->num_rows > 0) {
-        $sales = $result->fetch_all(MYSQLI_ASSOC);
-        $response = [
-            "head" => ["code" => 200, "msg" => "Success"],
-            "body" => ["sales" => $sales]
-        ];
-    } else {
-        $response = [
-            "head" => ["code" => 200, "msg" => "No Sales Found"],
-            "body" => ["sales" => []]
-        ];
+    // Extract filter values safely
+    $company_name = $obj->company_name ?? '';
+    $company_mobile_number = $obj->company_mobile_number ?? '';
+    $company_address = $obj->company_address ?? '';
+    $company_email = $obj->company_email ?? '';
+
+    // Base query and dynamic filters
+    $query = "SELECT * FROM sales WHERE delete_at = 0";
+    $params = [];
+    $types = '';
+
+    // Dynamic filter building
+    $filters = [
+        ['value' => $company_name, 'sql' => "company_name LIKE ?", 'bind' => function ($val) {
+            return "%$val%";
+        }],
+        ['value' => $company_mobile_number, 'sql' => "company_mobile_number LIKE ?", 'bind' => function ($val) {
+            return "%$val%";
+        }],
+        ['value' => $company_address, 'sql' => "company_address LIKE ?", 'bind' => function ($val) {
+            return "%$val%";
+        }],
+        ['value' => $company_email, 'sql' => "company_email LIKE ?", 'bind' => function ($val) {
+            return "%$val%";
+        }],
+    ];
+
+    foreach ($filters as $filter) {
+        if (!empty($filter['value'])) {
+            $query .= " AND " . $filter['sql'];
+            $params[] = $filter['bind']($filter['value']);
+            $types .= 's';
+        }
     }
+
+    $query .= " ORDER BY create_at ASC";
+    $stmt = $conn->prepare($query);
+
+    if (!empty($params)) {
+        $stmt->bind_param($types, ...$params);
+    }
+
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $sales = $result->num_rows > 0 ? $result->fetch_all(MYSQLI_ASSOC) : [];
+
+    $response = [
+        "head" => ["code" => 200, "msg" => $sales ? "Success" : "No Sales Found"],
+        "body" => ["sales" => $sales]
+    ];
+
     echo json_encode($response, JSON_NUMERIC_CHECK);
     exit();
 }
