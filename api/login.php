@@ -37,7 +37,7 @@ if (isset($obj->email) && isset($obj->password)) {
             $row = $result->fetch_assoc();
 
             // Verify password
-            if ($row['Password']) {
+            if ($row['Password'] === $password) {
                 // Create JWT payload
                 $payload = array(
                     "iss" => "http://localhost",
