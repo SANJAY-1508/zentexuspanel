@@ -71,6 +71,7 @@ elseif ($action === 'createSale') {
     $company_email = $obj['company_email'] ?? null;
     $company_address = $obj['company_address'] ?? null;
     $company_gst_no = $obj['company_gst_no'] ?? null;
+    $payment_terms = $obj['payment_terms'] ?? null;
     $products = $obj['products'] ?? null;
     $sub_total = $obj['sub_total'] ?? null;
     $gst_type = $obj['gst_type'] ?? null;
@@ -87,15 +88,16 @@ elseif ($action === 'createSale') {
         ];
     } else {
         // Prepare and execute the insert query
-        $stmt = $conn->prepare("INSERT INTO sales (sales_date, company_name, company_mobile_number, company_email, company_address, company_gst_no, products, sub_total, gst_type, gst_amount, discount_type, discount, total, create_at, delete_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)");
+        $stmt = $conn->prepare("INSERT INTO sales (sales_date, company_name, company_mobile_number, company_email, company_address, company_gst_no,payment_terms, products, sub_total, gst_type, gst_amount, discount_type, discount, total, create_at, delete_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)");
         $stmt->bind_param(
-            "sssssssdsdsdds",
+            "ssssssssdsdsdds",
             $sales_date,
             $company_name,
             $company_mobile_number,
             $company_email,
             $company_address,
             $company_gst_no,
+            $payment_terms,
             $products,
             $sub_total,
             $gst_type,
@@ -147,6 +149,7 @@ elseif ($action === 'updateSale') {
     $company_email = $obj['company_email'] ?? null;
     $company_address = $obj['company_address'] ?? null;
     $company_gst_no = $obj['company_gst_no'] ?? null;
+    $payment_terms = $obj['payment_terms'] ?? null;
     $products = $obj['products'] ?? null;
     $sub_total = $obj['sub_total'] ?? null;
     $gst_type = $obj['gst_type'] ?? null;
@@ -163,15 +166,16 @@ elseif ($action === 'updateSale') {
         ];
     } else {
         // Prepare and execute the update query
-        $stmt = $conn->prepare("UPDATE sales SET sales_date = ?, company_name = ?, company_mobile_number = ?, company_email = ?, company_address = ?, company_gst_no = ?, products = ?, sub_total = ?, gst_type = ?, gst_amount = ?, discount_type = ?, discount = ?, total = ? WHERE sales_id = ?");
+        $stmt = $conn->prepare("UPDATE sales SET sales_date = ?, company_name = ?, company_mobile_number = ?, company_email = ?, company_address = ?, company_gst_no = ?,payment_terms = ?, products = ?, sub_total = ?, gst_type = ?, gst_amount = ?, discount_type = ?, discount = ?, total = ? WHERE sales_id = ?");
         $stmt->bind_param(
-            "sssssssdsdsdds",
+            "ssssssssdsdsdds",
             $sales_date,
             $company_name,
             $company_mobile_number,
             $company_email,
             $company_address,
             $company_gst_no,
+            $payment_terms,
             $products,
             $sub_total,
             $gst_type,
