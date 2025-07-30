@@ -86,10 +86,12 @@ elseif ($action === 'createSale') {
             "message" => "Sales Date, Company Name, and Company Mobile Number are required"
         ];
     } else {
+        $sales_invoice_no = generateSaleInvoiceNo($conn);
+
         // Prepare and execute the insert query
-        $stmt = $conn->prepare("INSERT INTO sales (sales_date, company_name, company_mobile_number, company_email, company_address, company_gst_no, payment_terms, products, sub_total, gst_type, gst_amount, discount_type, discount, total, create_at, delete_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)");
+        $stmt = $conn->prepare("INSERT INTO sales (sales_date, company_name, company_mobile_number, company_email, company_address, company_gst_no, payment_terms, products, sub_total, gst_type, gst_amount, discount_type, discount, total, sales_invoice_no, create_at, delete_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)");
         $stmt->bind_param(
-            "ssssssssdsdsdds",
+            "ssssssssdsdsddss",
             $sales_date,
             $company_name,
             $company_mobile_number,
@@ -104,6 +106,7 @@ elseif ($action === 'createSale') {
             $discount_type,
             $discount,
             $total,
+            $sales_invoice_no,
             $timestamp
         );
 

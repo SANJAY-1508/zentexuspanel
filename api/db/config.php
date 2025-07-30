@@ -232,3 +232,28 @@ function saveBase64PDF($base64String, $uploadDir = 'uploads/')
         return ["success" => false, "message" => "Failed to save PDF file"];
     }
 }
+
+function generateSaleInvoiceNo($conn)
+{
+    $stmt = $conn->prepare("SELECT MAX(id) as max_id FROM sales");
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $row = $result->fetch_assoc();
+    $max_id = $row['max_id'] ? $row['max_id'] + 1 : 1;
+    $sales_invoice_no = sprintf("zen_%03d_sale", $max_id);
+    $stmt->close();
+
+
+    $stmt = $conn->prepare("SELECT COUNT(*) as count FROM sales WHERE sales_invoice_no = ?");
+    $stmt->bind_param("s", $sales_invoice_no);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $row = $result->fetch_assoc();
+    if ($row['count'] > 0) {
+        $max_id++;
+        $sales_invoice_no = sprintf("zen_%03d_sale", $max_id);
+    }
+    $stmt->close();
+
+    return $sales_invoice_no;
+}
