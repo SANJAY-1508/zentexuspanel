@@ -81,13 +81,13 @@ elseif ($action === 'createPerforma') {
     $discount = $obj['discount'] ?? null;
     $total = $obj['total'] ?? null;
 
-    if (!$performa_date || !$company_name || !$company_mobile_number) {
+    if (!$performa_date || !$company_name  || !$performa_due_date || !$company_mobile_number) {
         $response = [
             "status" => 400,
-            "message" => "Performa Date, Company Name, and Company Mobile Number are required"
+            "message" => "Performa Date, Company Name,Performa Due Date  and Company Mobile Number are required"
         ];
     } else {
-        $performa_invoice_no = generateSaleInvoiceNo($conn); // Assuming same invoice generation logic
+        $performa_invoice_no = generatePerformaInvoiceNo($conn);
 
         // Prepare and execute the insert query
         $stmt = $conn->prepare("INSERT INTO performa (performa_date, performa_due_date, company_name, company_mobile_number, company_email, company_address, company_gst_no, payment_terms, products, sub_total, gst_type, gst_amount, discount_type, discount, total, performa_invoice_no, create_at, delete_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)");
@@ -164,10 +164,10 @@ elseif ($action === 'updatePerforma') {
     $total = $obj['total'] ?? null;
 
     // Validate required fields
-    if (!$edit_performa_id || !$performa_date || !$company_name || !$company_mobile_number) {
+    if (!$edit_performa_id || !$performa_date || !$performa_due_date || !$company_name || !$company_mobile_number) {
         $response = [
             "status" => 400,
-            "message" => "Performa ID, Performa Date, Company Name, and Company Mobile Number are required"
+            "message" => "Performa ID, Performa Date,Performa Due Date ,Company Name, and Company Mobile Number are required"
         ];
     } else {
         // Prepare and execute the update query

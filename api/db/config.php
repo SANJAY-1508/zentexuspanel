@@ -257,3 +257,27 @@ function generateSaleInvoiceNo($conn)
 
     return $sales_invoice_no;
 }
+
+function generatePerformaInvoiceNo($conn)
+{
+    $stmt = $conn->prepare("SELECT MAX(id) as max_id FROM performa");
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $row = $result->fetch_assoc();
+    $max_id = $row['max_id'] ? $row['max_id'] + 1 : 1;
+    $performa_invoice_no = sprintf("zen_%03d_performa", $max_id);
+    $stmt->close();
+
+    $stmt = $conn->prepare("SELECT COUNT(*) as count FROM performa WHERE performa_invoice_no = ?");
+    $stmt->bind_param("s", $performa_invoice_no);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $row = $result->fetch_assoc();
+    if ($row['count'] > 0) {
+        $max_id++;
+        $performa_invoice_no = sprintf("zen_%03d_performa", $max_id);
+    }
+    $stmt->close();
+
+    return $performa_invoice_no;
+}
