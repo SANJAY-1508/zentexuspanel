@@ -26,16 +26,16 @@ if (!isset($obj['action'])) {
 
 $action = $obj['action'];
 
-// **List Sales**
-if ($action === 'listSales') {
+// **List Performa**
+if ($action === 'listPerforma') {
     $filters = [
-        'company_name' => $obj->company_name ?? '',
-        'company_mobile_number' => $obj->company_mobile_number ?? '',
-        'company_address' => $obj->company_address ?? '',
-        'company_email' => $obj->company_email ?? '',
+        'company_name' => $obj['company_name'] ?? '',
+        'company_mobile_number' => $obj['company_mobile_number'] ?? '',
+        'company_address' => $obj['company_address'] ?? '',
+        'company_email' => $obj['company_email'] ?? '',
     ];
 
-    $query = "SELECT * FROM sales WHERE delete_at = 0";
+    $query = "SELECT * FROM performa WHERE delete_at = 0";
     $params = [];
     $types = '';
     foreach ($filters as $field => $value) {
@@ -54,18 +54,19 @@ if ($action === 'listSales') {
     }
     $stmt->execute();
     $result = $stmt->get_result();
-    $sales = $result->num_rows > 0 ? $result->fetch_all(MYSQLI_ASSOC) : [];
+    $performa = $result->num_rows > 0 ? $result->fetch_all(MYSQLI_ASSOC) : [];
 
     echo json_encode([
-        'head' => ['code' => 200, 'msg' => $sales ? 'Success' : 'No Sales Found'],
-        'body' => ['sales' => $sales]
+        'head' => ['code' => 200, 'msg' => $performa ? 'Success' : 'No Performa Found'],
+        'body' => ['performa' => $performa]
     ], JSON_NUMERIC_CHECK);
     exit;
 }
 
-// **Add Sale**
-elseif ($action === 'createSale') {
-    $sales_date = $obj['sales_date'] ?? null;
+// **Add Performa**
+elseif ($action === 'createPerforma') {
+    $performa_date = $obj['performa_date'] ?? null;
+    $performa_due_date = $obj['performa_due_date'] ?? null;
     $company_name = $obj['company_name'] ?? null;
     $company_mobile_number = $obj['company_mobile_number'] ?? null;
     $company_email = $obj['company_email'] ?? null;
@@ -80,19 +81,20 @@ elseif ($action === 'createSale') {
     $discount = $obj['discount'] ?? null;
     $total = $obj['total'] ?? null;
 
-    if (!$sales_date || !$company_name || !$company_mobile_number) {
+    if (!$performa_date || !$company_name || !$company_mobile_number) {
         $response = [
             "status" => 400,
-            "message" => "Sales Date, Company Name, and Company Mobile Number are required"
+            "message" => "Performa Date, Company Name, and Company Mobile Number are required"
         ];
     } else {
-        $sales_invoice_no = generateSaleInvoiceNo($conn);
+        $performa_invoice_no = generateSaleInvoiceNo($conn); // Assuming same invoice generation logic
 
         // Prepare and execute the insert query
-        $stmt = $conn->prepare("INSERT INTO sales (sales_date, company_name, company_mobile_number, company_email, company_address, company_gst_no, payment_terms, products, sub_total, gst_type, gst_amount, discount_type, discount, total, sales_invoice_no, create_at, delete_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)");
+        $stmt = $conn->prepare("INSERT INTO performa (performa_date, performa_due_date, company_name, company_mobile_number, company_email, company_address, company_gst_no, payment_terms, products, sub_total, gst_type, gst_amount, discount_type, discount, total, performa_invoice_no, create_at, delete_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)");
         $stmt->bind_param(
-            "ssssssssdsdsddss",
-            $sales_date,
+            "sssssssssdsdsddss",
+            $performa_date,
+            $performa_due_date,
             $company_name,
             $company_mobile_number,
             $company_email,
@@ -106,27 +108,27 @@ elseif ($action === 'createSale') {
             $discount_type,
             $discount,
             $total,
-            $sales_invoice_no,
+            $performa_invoice_no,
             $timestamp
         );
 
         if ($stmt->execute()) {
             $insertId = $conn->insert_id;
-            $sales_id = uniqueID("sales", $insertId);
+            $performa_id = uniqueID("performa", $insertId);
 
-            $stmtUpdate = $conn->prepare("UPDATE sales SET sales_id = ? WHERE id = ?");
-            $stmtUpdate->bind_param("si", $sales_id, $insertId);
+            $stmtUpdate = $conn->prepare("UPDATE performa SET performa_id = ? WHERE id = ?");
+            $stmtUpdate->bind_param("si", $performa_id, $insertId);
 
             if ($stmtUpdate->execute()) {
                 $response = [
                     "status" => 200,
-                    "message" => "Sale Added Successfully",
-                    "sales_id" => $sales_id
+                    "message" => "Performa Added Successfully",
+                    "performa_id" => $performa_id
                 ];
             } else {
                 $response = [
                     "status" => 400,
-                    "message" => "Failed to update Sales ID"
+                    "message" => "Failed to update Performa ID"
                 ];
             }
 
@@ -134,7 +136,7 @@ elseif ($action === 'createSale') {
         } else {
             $response = [
                 "status" => 400,
-                "message" => "Failed to Add Sale. Error: " . $stmt->error
+                "message" => "Failed to Add Performa. Error: " . $stmt->error
             ];
         }
 
@@ -142,10 +144,11 @@ elseif ($action === 'createSale') {
     }
 }
 
-// **Update Sale**
-elseif ($action === 'updateSale') {
-    $edit_sales_id = $obj['edit_sales_id'] ?? null;
-    $sales_date = $obj['sales_date'] ?? null;
+// **Update Performa**
+elseif ($action === 'updatePerforma') {
+    $edit_performa_id = $obj['edit_performa_id'] ?? null;
+    $performa_date = $obj['performa_date'] ?? null;
+    $performa_due_date = $obj['performa_due_date'] ?? null;
     $company_name = $obj['company_name'] ?? null;
     $company_mobile_number = $obj['company_mobile_number'] ?? null;
     $company_email = $obj['company_email'] ?? null;
@@ -161,17 +164,18 @@ elseif ($action === 'updateSale') {
     $total = $obj['total'] ?? null;
 
     // Validate required fields
-    if (!$edit_sales_id || !$sales_date || !$company_name || !$company_mobile_number) {
+    if (!$edit_performa_id || !$performa_date || !$company_name || !$company_mobile_number) {
         $response = [
             "status" => 400,
-            "message" => "Sales ID, Sales Date, Company Name, and Company Mobile Number are required"
+            "message" => "Performa ID, Performa Date, Company Name, and Company Mobile Number are required"
         ];
     } else {
         // Prepare and execute the update query
-        $stmt = $conn->prepare("UPDATE sales SET sales_date = ?, company_name = ?, company_mobile_number = ?, company_email = ?, company_address = ?, company_gst_no = ?, payment_terms = ?, products = ?, sub_total = ?, gst_type = ?, gst_amount = ?, discount_type = ?, discount = ?, total = ? WHERE sales_id = ?");
+        $stmt = $conn->prepare("UPDATE performa SET performa_date = ?, performa_due_date = ?, company_name = ?, company_mobile_number = ?, company_email = ?, company_address = ?, company_gst_no = ?, payment_terms = ?, products = ?, sub_total = ?, gst_type = ?, gst_amount = ?, discount_type = ?, discount = ?, total = ? WHERE performa_id = ?");
         $stmt->bind_param(
-            "ssssssssdsdsdds",
-            $sales_date,
+            "sssssssssdsdsdds",
+            $performa_date,
+            $performa_due_date,
             $company_name,
             $company_mobile_number,
             $company_email,
@@ -185,39 +189,39 @@ elseif ($action === 'updateSale') {
             $discount_type,
             $discount,
             $total,
-            $edit_sales_id
+            $edit_performa_id
         );
 
         if ($stmt->execute()) {
             $response = [
                 "status" => 200,
-                "message" => "Sale Updated Successfully"
+                "message" => "Performa Updated Successfully"
             ];
         } else {
             $response = [
                 "status" => 400,
-                "message" => "Failed to Update Sale. Error: " . $stmt->error
+                "message" => "Failed to Update Performa. Error: " . $stmt->error
             ];
         }
         $stmt->close();
     }
 }
 
-// **Delete Sale**
-elseif ($action === 'deleteSale') {
-    $delete_sales_id = $obj['delete_sales_id'] ?? null;
+// **Delete Performa**
+elseif ($action === 'deletePerforma') {
+    $delete_performa_id = $obj['delete_performa_id'] ?? null;
 
-    if ($delete_sales_id) {
-        $stmt = $conn->prepare("UPDATE sales SET delete_at = 1 WHERE sales_id = ?");
-        $stmt->bind_param("s", $delete_sales_id);
+    if ($delete_performa_id) {
+        $stmt = $conn->prepare("UPDATE performa SET delete_at = 1 WHERE performa_id = ?");
+        $stmt->bind_param("s", $delete_performa_id);
 
         if ($stmt->execute()) {
             $response = [
-                "head" => ["code" => 200, "msg" => "Sale Deleted Successfully"]
+                "head" => ["code" => 200, "msg" => "Performa Deleted Successfully"]
             ];
         } else {
             $response = [
-                "head" => ["code" => 400, "msg" => "Failed to Delete Sale. Error: " . $stmt->error]
+                "head" => ["code" => 400, "msg" => "Failed to Delete Performa. Error: " . $stmt->error]
             ];
         }
         $stmt->close();
