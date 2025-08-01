@@ -29,17 +29,17 @@ $action = $obj['action'];
 // **List Sales**
 if ($action === 'listSales') {
     $filters = [
-        'company_name' => $obj->company_name ?? '',
-        'company_mobile_number' => $obj->company_mobile_number ?? '',
-        'company_address' => $obj->company_address ?? '',
-        'company_email' => $obj->company_email ?? '',
+        'company_name' => $obj['company_name'] ?? '',
+        'company_mobile_number' => $obj['company_mobile_number'] ?? '',
+        'company_address' => $obj['company_address'] ?? '',
+        'company_email' => $obj['company_email'] ?? '',
     ];
 
-    $page = isset($obj->page) ? max(1, (int)$obj->page) : 1;
-    $limit = isset($obj->limit) ? max(1, (int)$obj->limit) : 10;
+    $page = isset($obj['page']) ? max(1, (int)$obj['page']) : 1;
+    $limit = isset($obj['limit']) ? max(1, (int)$obj['limit']) : 10;
     $offset = ($page - 1) * $limit;
 
-    // Count total records
+    // Count total records for pagination
     $countQuery = "SELECT COUNT(*) as total FROM sales WHERE delete_at = 0";
     $countParams = [];
     $countTypes = '';
@@ -50,6 +50,7 @@ if ($action === 'listSales') {
             $countTypes .= 's';
         }
     }
+
     $countStmt = $conn->prepare($countQuery);
     if ($countParams) {
         $countStmt->bind_param($countTypes, ...$countParams);
@@ -57,7 +58,7 @@ if ($action === 'listSales') {
     $countStmt->execute();
     $totalRecords = $countStmt->get_result()->fetch_assoc()['total'];
 
-    // Fetch paginated sales
+    // Fetch paginated records
     $query = "SELECT * FROM sales WHERE delete_at = 0";
     $params = [];
     $types = '';
@@ -68,6 +69,7 @@ if ($action === 'listSales') {
             $types .= 's';
         }
     }
+
     $query .= " ORDER BY create_at ASC LIMIT ? OFFSET ?";
     $params[] = $limit;
     $params[] = $offset;
