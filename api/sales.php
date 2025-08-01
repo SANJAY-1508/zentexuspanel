@@ -35,6 +35,29 @@ if ($action === 'listSales') {
         'company_email' => $obj->company_email ?? '',
     ];
 
+    $page = isset($obj->page) ? max(1, (int)$obj->page) : 1;
+    $limit = isset($obj->limit) ? max(1, (int)$obj->limit) : 10;
+    $offset = ($page - 1) * $limit;
+
+    // Count total records
+    $countQuery = "SELECT COUNT(*) as total FROM sales WHERE delete_at = 0";
+    $countParams = [];
+    $countTypes = '';
+    foreach ($filters as $field => $value) {
+        if ($value !== '') {
+            $countQuery .= " AND $field LIKE ?";
+            $countParams[] = "%$value%";
+            $countTypes .= 's';
+        }
+    }
+    $countStmt = $conn->prepare($countQuery);
+    if ($countParams) {
+        $countStmt->bind_param($countTypes, ...$countParams);
+    }
+    $countStmt->execute();
+    $totalRecords = $countStmt->get_result()->fetch_assoc()['total'];
+
+    // Fetch paginated sales
     $query = "SELECT * FROM sales WHERE delete_at = 0";
     $params = [];
     $types = '';
@@ -45,10 +68,12 @@ if ($action === 'listSales') {
             $types .= 's';
         }
     }
+    $query .= " ORDER BY create_at ASC LIMIT ? OFFSET ?";
+    $params[] = $limit;
+    $params[] = $offset;
+    $types .= 'ii';
 
-    $query .= " ORDER BY create_at ASC";
     $stmt = $conn->prepare($query);
-
     if ($params) {
         $stmt->bind_param($types, ...$params);
     }
@@ -58,7 +83,10 @@ if ($action === 'listSales') {
 
     echo json_encode([
         'head' => ['code' => 200, 'msg' => $sales ? 'Success' : 'No Sales Found'],
-        'body' => ['sales' => $sales]
+        'body' => [
+            'sales' => $sales,
+            'totalRecords' => $totalRecords
+        ]
     ], JSON_NUMERIC_CHECK);
     exit;
 }
