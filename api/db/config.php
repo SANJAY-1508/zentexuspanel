@@ -205,31 +205,54 @@ function uniqueID($prefix_name, $auto_increment_id)
     return $hashid;
 }
 
-function saveBase64PDF($base64String, $uploadDir = 'uploads/')
+function saveBase64File($base64String, $uploadDir = 'uploads/')
 {
-
     if (!is_dir($uploadDir)) {
         mkdir($uploadDir, 0755, true);
     }
 
+    // Extract MIME type and Base64 data
+    if (!preg_match('#^data:([a-zA-Z0-9]+/[a-zA-Z0-9]+);base64,(.+)$#', $base64String, $matches)) {
+        return ["success" => false, "message" => "Invalid Base64 data format"];
+    }
 
-    $base64String = preg_replace('#^data:application/pdf;base64,#', '', $base64String);
-    $base64String = str_replace(' ', '+', $base64String);
-    $decodedData = base64_decode($base64String);
+    $mimeType = $matches[1]; // e.g., application/pdf, image/jpeg
+    $base64Data = $matches[2]; // Base64-encoded data
+    $base64Data = str_replace(' ', '+', $base64Data);
+    $decodedData = base64_decode($base64Data);
 
     if ($decodedData === false) {
-        return ["success" => false, "message" => "Invalid Base64 data"];
+        return ["success" => false, "message" => "Failed to decode Base64 data"];
+    }
+
+    // Determine file extension based on MIME type
+    $extension = '';
+    switch ($mimeType) {
+        case 'application/pdf':
+            $extension = 'pdf';
+            break;
+        case 'image/jpeg':
+            $extension = 'jpg';
+            break;
+        case 'image/png':
+            $extension = 'png';
+            break;
+        case 'image/gif':
+            $extension = 'gif';
+            break;
+        default:
+            return ["success" => false, "message" => "Unsupported file type: $mimeType"];
     }
 
     // Generate a unique file name
-    $fileName = 'pdf_' . uniqid() . '.pdf';
+    $fileName = 'file_' . uniqid() . '.' . $extension;
     $filePath = $uploadDir . $fileName;
 
     // Save the file
     if (file_put_contents($filePath, $decodedData)) {
-        return ["success" => true, "filePath" => $filePath];
+        return ["success" => true, "filePath" => $filePath, "mimeType" => $mimeType];
     } else {
-        return ["success" => false, "message" => "Failed to save PDF file"];
+        return ["success" => false, "message" => "Failed to save file"];
     }
 }
 

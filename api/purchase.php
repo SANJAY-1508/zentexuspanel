@@ -80,16 +80,16 @@ elseif ($action === 'createPurchase') {
             "message" => "Company Name, Purchase Date, and Company Mobile Number are required"
         ];
     } else {
-        // Handle Base64 PDF
+        // Handle Base64 file (PDF or image)
         $company_proof_path = null;
         if ($company_proof) {
-            $pdfResult = saveBase64PDF($company_proof);
-            if ($pdfResult['success']) {
-                $company_proof_path = $pdfResult['filePath'];
+            $fileResult = saveBase64File($company_proof);
+            if ($fileResult['success']) {
+                $company_proof_path = $fileResult['filePath'];
             } else {
                 $response = [
                     "status" => 400,
-                    "message" => $pdfResult['message']
+                    "message" => $fileResult['message']
                 ];
                 echo json_encode($response, JSON_NUMERIC_CHECK);
                 exit();
@@ -177,12 +177,12 @@ elseif ($action === 'updatePurchase') {
             "message" => "Purchase ID, Company Name, Purchase Date, and Company Mobile Number are required"
         ];
     } else {
-        // Handle Base64 PDF
+        // Handle Base64 file (PDF or image)
         $company_proof_path = null;
         if ($company_proof) {
-            $pdfResult = saveBase64PDF($company_proof);
-            if ($pdfResult['success']) {
-                $company_proof_path = $pdfResult['filePath'];
+            $fileResult = saveBase64File($company_proof);
+            if ($fileResult['success']) {
+                $company_proof_path = $fileResult['filePath'];
                 // Delete old proof
                 $stmtOld = $conn->prepare("SELECT company_proof FROM purchase WHERE purchase_id = ?");
                 $stmtOld->bind_param("s", $edit_purchase_id);
@@ -198,7 +198,7 @@ elseif ($action === 'updatePurchase') {
             } else {
                 $response = [
                     "status" => 400,
-                    "message" => $pdfResult['message']
+                    "message" => $fileResult['message']
                 ];
                 echo json_encode($response, JSON_NUMERIC_CHECK);
                 exit();
