@@ -1,5 +1,4 @@
 <?php
-
 include 'headers.php';
 header('Content-Type: application/json; charset=utf-8');
 header("Access-Control-Allow-Origin: http://localhost:3000");
@@ -26,36 +25,78 @@ if (!isset($obj['action'])) {
 
 $action = $obj['action'];
 
-
-
 // **List Purchases**
 if ($action === 'listPurchases') {
-    $query = "SELECT * FROM purchase WHERE delete_at = 0 ORDER BY create_at ASC";
-    $result = $conn->query($query);
-    $baseUrl = 'http://localhost/zentexuspanel/api/';
+    $filters = [
+        'company_name' => $obj['company_name'] ?? '',
+        'company_mobile_number' => $obj['company_mobile_number'] ?? '',
+        'company_address' => $obj['company_address'] ?? '',
+        'company_email' => $obj['company_email'] ?? '',
+    ];
 
-    if ($result && $result->num_rows > 0) {
-        $purchases = $result->fetch_all(MYSQLI_ASSOC);
+    $page = isset($obj['page']) ? max(1, (int)$obj['page']) : 1;
+    $limit = isset($obj['limit']) ? max(1, (int)$obj['limit']) : 10;
+    $offset = ($page - 1) * $limit;
 
-
-        foreach ($purchases as &$purchase) {
-            if (!empty($purchase['company_proof'])) {
-                $purchase['company_proof'] = $baseUrl . $purchase['company_proof'];
-            }
+    // Count total records for pagination
+    $countQuery = "SELECT COUNT(*) as total FROM purchase WHERE delete_at = 0";
+    $countParams = [];
+    $countTypes = '';
+    foreach ($filters as $field => $value) {
+        if ($value !== '') {
+            $countQuery .= " AND $field LIKE ?";
+            $countParams[] = "%$value%";
+            $countTypes .= 's';
         }
-        unset($purchase);
-
-        $response = [
-            "head" => ["code" => 200, "msg" => "Success"],
-            "body" => ["purchases" => $purchases]
-        ];
-    } else {
-        $response = [
-            "head" => ["code" => 200, "msg" => "No Purchases Found"],
-            "body" => ["purchases" => []]
-        ];
     }
-    echo json_encode($response, JSON_NUMERIC_CHECK);
+
+    $countStmt = $conn->prepare($countQuery);
+    if ($countParams) {
+        $countStmt->bind_param($countTypes, ...$countParams);
+    }
+    $countStmt->execute();
+    $totalRecords = $countStmt->get_result()->fetch_assoc()['total'];
+
+    // Fetch paginated records
+    $query = "SELECT * FROM purchase WHERE delete_at = 0";
+    $params = [];
+    $types = '';
+    foreach ($filters as $field => $value) {
+        if ($value !== '') {
+            $query .= " AND $field LIKE ?";
+            $params[] = "%$value%";
+            $types .= 's';
+        }
+    }
+
+    $query .= " ORDER BY create_at ASC LIMIT ? OFFSET ?";
+    $params[] = $limit;
+    $params[] = $offset;
+    $types .= 'ii';
+
+    $stmt = $conn->prepare($query);
+    if ($params) {
+        $stmt->bind_param($types, ...$params);
+    }
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $purchases = $result->num_rows > 0 ? $result->fetch_all(MYSQLI_ASSOC) : [];
+
+    $baseUrl = 'http://localhost/zentexuspanel/api/';
+    foreach ($purchases as &$purchase) {
+        if (!empty($purchase['company_proof'])) {
+            $purchase['company_proof'] = $baseUrl . $purchase['company_proof'];
+        }
+    }
+    unset($purchase);
+
+    echo json_encode([
+        'head' => ['code' => 200, 'msg' => $purchases ? 'Success' : 'No Purchases Found'],
+        'body' => [
+            'purchases' => $purchases,
+            'totalRecords' => $totalRecords
+        ]
+    ], JSON_NUMERIC_CHECK);
     exit();
 }
 
@@ -130,10 +171,7 @@ elseif ($action === 'createPurchase') {
 
         if ($stmt->execute()) {
             $insertId = $conn->insert_id;
-
-
             $purchase_id = uniqueID("purchase", $insertId);
-
 
             $stmtUpdate = $conn->prepare("UPDATE purchase SET purchase_id = ? WHERE id = ?");
             $stmtUpdate->bind_param("si", $purchase_id, $insertId);
@@ -267,7 +305,6 @@ elseif ($action === 'deletePurchase') {
     $delete_purchase_id = $obj['delete_purchase_id'] ?? null;
 
     if ($delete_purchase_id) {
-        // Optionally, delete the associated PDF file
         $stmtOld = $conn->prepare("SELECT company_proof FROM purchase WHERE purchase_id = ?");
         $stmtOld->bind_param("s", $delete_purchase_id);
         $stmtOld->execute();
@@ -275,7 +312,7 @@ elseif ($action === 'deletePurchase') {
         if ($resultOld->num_rows > 0) {
             $oldProof = $resultOld->fetch_assoc()['company_proof'];
             if ($oldProof && file_exists($oldProof)) {
-                unlink($oldProof); // Delete the file
+                unlink($oldProof);
             }
         }
         $stmtOld->close();
