@@ -207,25 +207,30 @@ function uniqueID($prefix_name, $auto_increment_id)
 
 function saveBase64PDF($base64String, $uploadDir = 'uploads/')
 {
-
     if (!is_dir($uploadDir)) {
         mkdir($uploadDir, 0755, true);
     }
 
-
+    // Remove data URI prefix (e.g., data:application/pdf;base64,)
     $base64String = preg_replace('#^data:application/pdf;base64,#', '', $base64String);
     $base64String = str_replace(' ', '+', $base64String);
-    $decodedData = base64_decode($base64String);
 
+    // Decode Base64
+    $decodedData = base64_decode($base64String);
     if ($decodedData === false) {
         return ["success" => false, "message" => "Invalid Base64 data"];
     }
 
-    // Generate a unique file name
+    // Validate PDF content (basic check for PDF header)
+    if (substr($decodedData, 0, 4) !== '%PDF') {
+        return ["success" => false, "message" => "Invalid PDF file"];
+    }
+
+    // Generate unique file name
     $fileName = 'pdf_' . uniqid() . '.pdf';
     $filePath = $uploadDir . $fileName;
 
-    // Save the file
+    // Save file
     if (file_put_contents($filePath, $decodedData)) {
         return ["success" => true, "filePath" => $filePath];
     } else {

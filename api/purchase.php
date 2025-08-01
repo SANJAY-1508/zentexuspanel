@@ -1,5 +1,6 @@
 <?php
 include 'headers.php';
+
 header('Content-Type: application/json; charset=utf-8');
 header("Access-Control-Allow-Origin: http://localhost:3000");
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS, PUT, DELETE");
@@ -14,7 +15,6 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 $json = file_get_contents('php://input');
 $obj = json_decode($json, true);
 $output = array();
-
 date_default_timezone_set('Asia/Calcutta');
 $timestamp = date('Y-m-d H:i:s');
 
@@ -25,6 +25,8 @@ if (!isset($obj['action'])) {
 
 $action = $obj['action'];
 
+
+
 // **List Purchases**
 if ($action === 'listPurchases') {
     $filters = [
@@ -33,10 +35,7 @@ if ($action === 'listPurchases') {
         'company_address' => 'company_address',
         'company_email' => 'company_email',
     ];
-
     $result = fetchPaginatedRecords($conn, 'purchase', $filters, $obj);
-
-    // Add proof baseURL for purchase only
     $baseUrl = 'http://localhost/zentexuspanel/api/';
     foreach ($result['records'] as &$purchase) {
         if (!empty($purchase['company_proof'])) {
@@ -44,7 +43,6 @@ if ($action === 'listPurchases') {
         }
     }
     unset($purchase);
-
     echo json_encode([
         'head' => ['code' => 200, 'msg' => $result['records'] ? 'Success' : 'No Purchases Found'],
         'body' => [
@@ -54,7 +52,6 @@ if ($action === 'listPurchases') {
     ], JSON_NUMERIC_CHECK);
     exit();
 }
-
 
 // **Add Purchase**
 elseif ($action === 'createPurchase') {
@@ -71,7 +68,6 @@ elseif ($action === 'createPurchase') {
     $overall_total = $obj['overall_total'] ?? null;
     $discount_type = $obj['discount_type'] ?? null;
     $discount = $obj['discount'] ?? null;
-
     $payment_details = $obj['payment_details'] ?? null;
     $balance = $obj['balance'] ?? null;
     $reference = $obj['reference'] ?? null;
@@ -100,7 +96,7 @@ elseif ($action === 'createPurchase') {
             }
         }
 
-        // Prepare and execute the insert query
+        // Prepare and execute insert query
         $stmt = $conn->prepare("INSERT INTO purchase (purchase_date, company_name, company_mobile_number, company_email, company_address, company_gst_no, company_proof, products, subtotal_without_gst, subtotal_with_gst, overall_total, discount_type, discount, payment_details, balance, reference, paid_by, create_at, delete_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)");
         $stmt->bind_param(
             "ssssssssdddsdsssss",
@@ -117,7 +113,6 @@ elseif ($action === 'createPurchase') {
             $overall_total,
             $discount_type,
             $discount,
-
             $payment_details,
             $balance,
             $reference,
@@ -128,10 +123,8 @@ elseif ($action === 'createPurchase') {
         if ($stmt->execute()) {
             $insertId = $conn->insert_id;
             $purchase_id = uniqueID("purchase", $insertId);
-
             $stmtUpdate = $conn->prepare("UPDATE purchase SET purchase_id = ? WHERE id = ?");
             $stmtUpdate->bind_param("si", $purchase_id, $insertId);
-
             if ($stmtUpdate->execute()) {
                 $response = [
                     "status" => 200,
@@ -145,7 +138,6 @@ elseif ($action === 'createPurchase') {
                     "message" => "Failed to update Purchase ID"
                 ];
             }
-
             $stmtUpdate->close();
         } else {
             $response = [
@@ -153,7 +145,6 @@ elseif ($action === 'createPurchase') {
                 "message" => "Failed to Add Purchase. Error: " . $stmt->error
             ];
         }
-
         $stmt->close();
     }
 }
@@ -174,7 +165,6 @@ elseif ($action === 'updatePurchase') {
     $overall_total = $obj['overall_total'] ?? null;
     $discount_type = $obj['discount_type'] ?? null;
     $discount = $obj['discount'] ?? null;
-
     $payment_details = $obj['payment_details'] ?? null;
     $balance = $obj['balance'] ?? null;
     $reference = $obj['reference'] ?? null;
@@ -193,7 +183,7 @@ elseif ($action === 'updatePurchase') {
             $pdfResult = saveBase64PDF($company_proof);
             if ($pdfResult['success']) {
                 $company_proof_path = $pdfResult['filePath'];
-
+                // Delete old proof
                 $stmtOld = $conn->prepare("SELECT company_proof FROM purchase WHERE purchase_id = ?");
                 $stmtOld->bind_param("s", $edit_purchase_id);
                 $stmtOld->execute();
@@ -215,7 +205,7 @@ elseif ($action === 'updatePurchase') {
             }
         }
 
-        // Prepare and execute the update query
+        // Prepare and execute update query
         $stmt = $conn->prepare("UPDATE purchase SET company_name = ?, purchase_date = ?, company_mobile_number = ?, company_email = ?, company_address = ?, company_gst_no = ?, company_proof = COALESCE(?, company_proof), products = ?, subtotal_without_gst = ?, subtotal_with_gst = ?, overall_total = ?, discount_type = ?, discount = ?, payment_details = ?, balance = ?, reference = ?, paid_by = ? WHERE purchase_id = ?");
         $stmt->bind_param(
             "ssssssssdddsdsssss",
@@ -232,7 +222,6 @@ elseif ($action === 'updatePurchase') {
             $overall_total,
             $discount_type,
             $discount,
-
             $payment_details,
             $balance,
             $reference,
@@ -259,7 +248,6 @@ elseif ($action === 'updatePurchase') {
 // **Delete Purchase**
 elseif ($action === 'deletePurchase') {
     $delete_purchase_id = $obj['delete_purchase_id'] ?? null;
-
     if ($delete_purchase_id) {
         $stmtOld = $conn->prepare("SELECT company_proof FROM purchase WHERE purchase_id = ?");
         $stmtOld->bind_param("s", $delete_purchase_id);
@@ -275,7 +263,6 @@ elseif ($action === 'deletePurchase') {
 
         $stmt = $conn->prepare("UPDATE purchase SET delete_at = 1 WHERE purchase_id = ?");
         $stmt->bind_param("s", $delete_purchase_id);
-
         if ($stmt->execute()) {
             $response = [
                 "head" => ["code" => 200, "msg" => "Purchase Deleted Successfully"]
