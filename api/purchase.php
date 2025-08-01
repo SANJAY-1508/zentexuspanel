@@ -28,62 +28,17 @@ $action = $obj['action'];
 // **List Purchases**
 if ($action === 'listPurchases') {
     $filters = [
-        'company_name' => $obj['company_name'] ?? '',
-        'company_mobile_number' => $obj['company_mobile_number'] ?? '',
-        'company_address' => $obj['company_address'] ?? '',
-        'company_email' => $obj['company_email'] ?? '',
+        'company_name' => 'company_name',
+        'company_mobile_number' => 'company_mobile_number',
+        'company_address' => 'company_address',
+        'company_email' => 'company_email',
     ];
 
-    $page = isset($obj['page']) ? max(1, (int)$obj['page']) : 1;
-    $limit = isset($obj['limit']) ? max(1, (int)$obj['limit']) : 10;
-    $offset = ($page - 1) * $limit;
+    $result = fetchPaginatedRecords($conn, 'purchase', $filters, $obj);
 
-    // Count total records for pagination
-    $countQuery = "SELECT COUNT(*) as total FROM purchase WHERE delete_at = 0";
-    $countParams = [];
-    $countTypes = '';
-    foreach ($filters as $field => $value) {
-        if ($value !== '') {
-            $countQuery .= " AND $field LIKE ?";
-            $countParams[] = "%$value%";
-            $countTypes .= 's';
-        }
-    }
-
-    $countStmt = $conn->prepare($countQuery);
-    if ($countParams) {
-        $countStmt->bind_param($countTypes, ...$countParams);
-    }
-    $countStmt->execute();
-    $totalRecords = $countStmt->get_result()->fetch_assoc()['total'];
-
-    // Fetch paginated records
-    $query = "SELECT * FROM purchase WHERE delete_at = 0";
-    $params = [];
-    $types = '';
-    foreach ($filters as $field => $value) {
-        if ($value !== '') {
-            $query .= " AND $field LIKE ?";
-            $params[] = "%$value%";
-            $types .= 's';
-        }
-    }
-
-    $query .= " ORDER BY create_at ASC LIMIT ? OFFSET ?";
-    $params[] = $limit;
-    $params[] = $offset;
-    $types .= 'ii';
-
-    $stmt = $conn->prepare($query);
-    if ($params) {
-        $stmt->bind_param($types, ...$params);
-    }
-    $stmt->execute();
-    $result = $stmt->get_result();
-    $purchases = $result->num_rows > 0 ? $result->fetch_all(MYSQLI_ASSOC) : [];
-
+    // Add proof baseURL for purchase only
     $baseUrl = 'http://localhost/zentexuspanel/api/';
-    foreach ($purchases as &$purchase) {
+    foreach ($result['records'] as &$purchase) {
         if (!empty($purchase['company_proof'])) {
             $purchase['company_proof'] = $baseUrl . $purchase['company_proof'];
         }
@@ -91,14 +46,15 @@ if ($action === 'listPurchases') {
     unset($purchase);
 
     echo json_encode([
-        'head' => ['code' => 200, 'msg' => $purchases ? 'Success' : 'No Purchases Found'],
+        'head' => ['code' => 200, 'msg' => $result['records'] ? 'Success' : 'No Purchases Found'],
         'body' => [
-            'purchases' => $purchases,
-            'totalRecords' => $totalRecords
+            'purchases' => $result['records'],
+            'totalRecords' => $result['totalRecords']
         ]
     ], JSON_NUMERIC_CHECK);
     exit();
 }
+
 
 // **Add Purchase**
 elseif ($action === 'createPurchase') {

@@ -281,3 +281,64 @@ function generatePerformaInvoiceNo($conn)
 
     return $performa_invoice_no;
 }
+
+function fetchPaginatedRecords($conn, $table, $filters, $obj)
+{
+    $page = isset($obj['page']) ? max(1, (int)$obj['page']) : 1;
+    $limit = isset($obj['limit']) ? max(1, (int)$obj['limit']) : 10;
+    $offset = ($page - 1) * $limit;
+
+    // Count Query
+    $countQuery = "SELECT COUNT(*) as total FROM $table WHERE delete_at = 0";
+    $countParams = [];
+    $countTypes = '';
+
+    foreach ($filters as $field => $value) {
+        if (!empty($obj[$value])) {
+            $countQuery .= " AND $value LIKE ?";
+            $countParams[] = '%' . $obj[$value] . '%';
+            $countTypes .= 's';
+        }
+    }
+
+    $countStmt = $conn->prepare($countQuery);
+    if ($countParams) {
+        $countStmt->bind_param($countTypes, ...$countParams);
+    }
+    $countStmt->execute();
+    $totalRecords = $countStmt->get_result()->fetch_assoc()['total'];
+    $countStmt->close();
+
+    // Data Query
+    $query = "SELECT * FROM $table WHERE delete_at = 0";
+    $params = [];
+    $types = '';
+
+    foreach ($filters as $field => $value) {
+        if (!empty($obj[$value])) {
+            $query .= " AND $value LIKE ?";
+            $params[] = '%' . $obj[$value] . '%';
+            $types .= 's';
+        }
+    }
+
+    $query .= " ORDER BY create_at ASC LIMIT ? OFFSET ?";
+    $params[] = $limit;
+    $params[] = $offset;
+    $types .= 'ii';
+
+    $stmt = $conn->prepare($query);
+    if ($params) {
+        $stmt->bind_param($types, ...$params);
+    }
+
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $records = $result->num_rows > 0 ? $result->fetch_all(MYSQLI_ASSOC) : [];
+    $stmt->close();
+
+    return [
+        'records' => $records,
+        'totalRecords' => $totalRecords
+    ];
+}
