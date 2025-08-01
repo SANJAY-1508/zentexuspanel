@@ -293,10 +293,10 @@ function fetchPaginatedRecords($conn, $table, $filters, $obj)
     $countParams = [];
     $countTypes = '';
 
-    foreach ($filters as $field => $value) {
-        if (!empty($obj[$value])) {
-            $countQuery .= " AND $value LIKE ?";
-            $countParams[] = '%' . $obj[$value] . '%';
+    foreach ($filters as $field) {
+        if (!empty($obj[$field])) {
+            $countQuery .= " AND $field LIKE ?";
+            $countParams[] = '%' . $obj[$field] . '%';
             $countTypes .= 's';
         }
     }
@@ -314,10 +314,10 @@ function fetchPaginatedRecords($conn, $table, $filters, $obj)
     $params = [];
     $types = '';
 
-    foreach ($filters as $field => $value) {
-        if (!empty($obj[$value])) {
-            $query .= " AND $value LIKE ?";
-            $params[] = '%' . $obj[$value] . '%';
+    foreach ($filters as $field) {
+        if (!empty($obj[$field])) {
+            $query .= " AND $field LIKE ?";
+            $params[] = '%' . $obj[$field] . '%';
             $types .= 's';
         }
     }
