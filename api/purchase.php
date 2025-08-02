@@ -177,9 +177,13 @@ elseif ($action === 'updatePurchase') {
             "message" => "Purchase ID, Company Name, Purchase Date, and Company Mobile Number are required"
         ];
     } else {
-        // Handle Base64 file (PDF or image)
         $company_proof_path = null;
-        if ($company_proof) {
+
+        // Check if company_proof is a valid Base64 string
+        $isBase64 = $company_proof && preg_match('#^data:([a-zA-Z0-9]+/[a-zA-Z0-9]+);base64,(.+)$#', $company_proof);
+
+        if ($isBase64) {
+            // Handle Base64 file (PDF or image)
             $fileResult = saveBase64File($company_proof);
             if ($fileResult['success']) {
                 $company_proof_path = $fileResult['filePath'];
@@ -205,35 +209,61 @@ elseif ($action === 'updatePurchase') {
             }
         }
 
-        // Prepare and execute update query
-        $stmt = $conn->prepare("UPDATE purchase SET company_name = ?, purchase_date = ?, company_mobile_number = ?, company_email = ?, company_address = ?, company_gst_no = ?, company_proof = COALESCE(?, company_proof), products = ?, subtotal_without_gst = ?, subtotal_with_gst = ?, overall_total = ?, discount_type = ?, discount = ?, payment_details = ?, balance = ?, reference = ?, paid_by = ? WHERE purchase_id = ?");
-        $stmt->bind_param(
-            "ssssssssdddsdsssss",
-            $company_name,
-            $purchase_date,
-            $company_mobile_number,
-            $company_email,
-            $company_address,
-            $company_gst_no,
-            $company_proof_path,
-            $products,
-            $subtotal_without_gst,
-            $subtotal_with_gst,
-            $overall_total,
-            $discount_type,
-            $discount,
-            $payment_details,
-            $balance,
-            $reference,
-            $paid_by,
-            $edit_purchase_id
-        );
+        // Prepare update query, conditionally handling company_proof
+        if ($isBase64) {
+            // Update company_proof if Base64 data is provided
+            $stmt = $conn->prepare("UPDATE purchase SET company_name = ?, purchase_date = ?, company_mobile_number = ?, company_email = ?, company_address = ?, company_gst_no = ?, company_proof = ?, products = ?, subtotal_without_gst = ?, subtotal_with_gst = ?, overall_total = ?, discount_type = ?, discount = ?, payment_details = ?, balance = ?, reference = ?, paid_by = ? WHERE purchase_id = ?");
+            $stmt->bind_param(
+                "ssssssssdddsdsssss",
+                $company_name,
+                $purchase_date,
+                $company_mobile_number,
+                $company_email,
+                $company_address,
+                $company_gst_no,
+                $company_proof_path,
+                $products,
+                $subtotal_without_gst,
+                $subtotal_with_gst,
+                $overall_total,
+                $discount_type,
+                $discount,
+                $payment_details,
+                $balance,
+                $reference,
+                $paid_by,
+                $edit_purchase_id
+            );
+        } else {
+            // Skip updating company_proof if not Base64
+            $stmt = $conn->prepare("UPDATE purchase SET company_name = ?, purchase_date = ?, company_mobile_number = ?, company_email = ?, company_address = ?, company_gst_no = ?, products = ?, subtotal_without_gst = ?, subtotal_with_gst = ?, overall_total = ?, discount_type = ?, discount = ?, payment_details = ?, balance = ?, reference = ?, paid_by = ? WHERE purchase_id = ?");
+            $stmt->bind_param(
+                "sssssssdddsdsssss",
+                $company_name,
+                $purchase_date,
+                $company_mobile_number,
+                $company_email,
+                $company_address,
+                $company_gst_no,
+                $products,
+                $subtotal_without_gst,
+                $subtotal_with_gst,
+                $overall_total,
+                $discount_type,
+                $discount,
+                $payment_details,
+                $balance,
+                $reference,
+                $paid_by,
+                $edit_purchase_id
+            );
+        }
 
         if ($stmt->execute()) {
             $response = [
                 "status" => 200,
                 "message" => "Purchase Updated Successfully",
-                "company_proof_path" => $company_proof_path
+                "company_proof_path" => $company_proof_path ?? ($isBase64 ? null : $company_proof)
             ];
         } else {
             $response = [
